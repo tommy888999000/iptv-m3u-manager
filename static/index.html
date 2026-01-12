@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPTV M3U Manager</title>
+    <link rel="stylesheet" href="/static/index.css">
+    <style>
+        /* Toast Notification Styles */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 3000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: rgba(30, 30, 45, 0.95);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            font-size: 0.95em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: slideUp 0.3s ease-out;
+            min-width: 200px;
+            justify-content: center;
+        }
+
+        .toast.success {
+            border-left: 3px solid #10b981;
+        }
+
+        .toast.error {
+            border-left: 3px solid #ef4444;
+        }
+
+        .toast.info {
+            border-left: 3px solid #3b82f6;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>📺 IPTV M3U Manager</h1>
+            <p>管理您的直播订阅、筛选、生成专属列表</p>
+        </header>
+
+        <section id="created_outputs_section">
+            <div class="glass-card">
+                <h2>🔗 已创建聚合</h2>
+                <div id="output_list">暂无数据</div>
+            </div>
+        </section>
+
+        <section id="subscriptions">
+            <div id="sub_form_container" class="glass-card">
+                <h2 id="sub_form_title">➕ 添加订阅源</h2>
+
+                <div class="tab-container">
+                    <button id="tab_normal" class="tab-btn active" onclick="switchSubTab('normal')">
+                        🔗 普通订阅
+                    </button>
+                    <button id="tab_git" class="tab-btn" onclick="switchSubTab('git')">
+                        📦 Git 仓库
+                    </button>
+                </div>
+
+                <input type="hidden" id="edit_sub_id">
+                <input type="hidden" id="sub_is_enabled" value="true">
+                <div class="form-group">
+                    <input type="text" id="sub_name" placeholder="名称 (例如: 卫视精品)">
+                </div>
+                <div class="form-group">
+                    <input type="text" id="sub_url" placeholder="M3U URL (多个地址请用英文逗号隔开)">
+                </div>
+                <div class="form-group" id="ua_form_group">
+                    <input type="text" id="sub_ua" list="ua_options" placeholder="User-Agent (可选，推荐选择下方常用 UA)" value="">
+                    <datalist id="ua_options">
+                        <option value="Mozilla/5.0">默认 (Browser)</option>
+                        <option value="TiviMate/4.7.0">TiviMate (Android TV)</option>
+                        <option value="AptvPlayer/1.4.1">APTV (iOS/Apple TV)</option>
+                        <option value="VLC/3.0.18">VLC Media Player</option>
+                        <option value="PotPlayer/1.7">PotPlayer (Windows)</option>
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <select id="sub_auto_update"
+                        style="width: 100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); color: #fff; border-radius: 8px; outline: none;">
+                        <option value="0">自动更新: 关闭 (手动刷新)</option>
+                        <option value="60">自动更新: 每 1 小时</option>
+                        <option value="720">自动更新: 每 12 小时</option>
+                        <option value="1440">自动更新: 每 24 小时</option>
+                        <option value="10080">自动更新: 每 7 天</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button id="sub_btn" class="btn" onclick="addSubscription()">添加订阅</button>
+                    <button id="sub_cancel_btn" class="btn" style="display: none; background: rgba(255,255,255,0.1);"
+                        onclick="cancelEditSub()">取消修改</button>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <h2>📋 当前订阅</h2>
+                <div id="sub_list">加载中...</div>
+            </div>
+        </section>
+
+        <section id="outputs">
+            <div class="glass-card">
+                <h2>🛠️ 创建聚合列表</h2>
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; opacity: 0.8;">1. 名称与后缀</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="out_name" placeholder="聚合名称 (例如: 家庭精选)">
+                        <input type="text" id="out_slug" placeholder="URL 后缀 (例如: family)">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="display: block; opacity: 0.8; margin: 0;">2. 选择订阅源 (多选)</label>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn btn-sm" style="font-size: 0.8em; padding: 2px 8px;"
+                                onclick="toggleAllSubs(1)">全选</button>
+                            <button class="btn btn-sm" style="font-size: 0.8em; padding: 2px 8px;"
+                                onclick="toggleAllSubs(0)">反选</button>
+                        </div>
+                    </div>
+                    <div id="sub_selector" class="sub-selector-list">正在获取订阅...</div>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; opacity: 0.8;">3. 高级正则 (可选)</label>
+                    <input type="text" id="out_regex" placeholder="CCTV.* (非专业人士建议留空)" value=".*">
+                </div>
+
+                <div class="form-group">
+                    <label style="display: block; margin-bottom: 8px; opacity: 0.8;">4. EPG 节目预告 (可选)</label>
+                    <input type="text" id="out_epg" placeholder="EPG XML 链接 (例如: http://epg.51zmt.top:8000/api/xml/)">
+                </div>
+
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" id="out_include_suffix" checked style="width: auto; margin: 0;">
+                    <label for="out_include_suffix" style="margin: 0; opacity: 0.8; font-size: 0.9em;">在频道名后显示订阅源 (例如:
+                        CCTV1 (卫视精品))</label>
+                </div>
+
+                <div class="form-group" style="position: relative;">
+                    <label style="display: block; margin-bottom: 8px; opacity: 0.8;">5. 关键字筛选 (回车查看下方预览)</label>
+                    <div id="tag_container" class="tag-container">
+                        <div style="display: flex; flex-grow: 1; align-items: center; gap: 5px;">
+                            <input type="text" id="tag_input" placeholder="关键字"
+                                style="background: transparent; border: none; outline: none; flex-grow: 2; padding: 0;">
+                        </div>
+                    </div>
+                    <div id="preview_window" class="preview-float"></div>
+                </div>
+            </div>
+
+            <input type="hidden" id="edit_output_id">
+            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+                <button id="out_btn" class="btn" style="width: 100%;" onclick="saveOutput()">生成专属 M3U 聚合
+                    URL</button>
+                <button id="out_cancel_btn" class="btn" style="display: none; background: rgba(255,255,255,0.1);"
+                    onclick="cancelEditOutput()">取消修改</button>
+            </div>
+    </div>
+
+    </section>
+    </div>
+
+    <!-- Channel Preview Modal -->
+    <div id="channel_modal" class="modal" onclick="if(event.target == this) closePreview()"
+        style="display:none !important; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(12px); align-items: center; justify-content: center; padding: 20px; box-sizing: border-box;">
+
+        <button id="back-to-top" class="btn" onclick="scrollToTop()"
+            style="background: var(--primary); border-radius: 50%; width: 50px; height: 50px; font-size: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; position: fixed; bottom: 30px; right: 30px; z-index: 2001;">↑</button>
+
+        <div class="glass-card"
+            style="max-width: 800px; width: 100%; max-height: 90vh; position: relative; padding: 0; display: flex; flex-direction: column; overflow: hidden; margin: 0;">
+            <!-- Real Sticky Header -->
+            <div
+                style="padding: 20px 24px; border-bottom: 1px solid var(--glass-border); display: flex; flex-direction: column; gap: 10px; background: rgba(30,30,45,0.98); z-index: 10; flex-shrink: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h2 id="modal_title" style="margin: 0;">频道预览</h2>
+                    <span onclick="closePreview()"
+                        style="cursor: pointer; font-size: 32px; line-height: 1; color: #fff; opacity: 0.8;">&times;</span>
+                </div>
+                <!-- Search Input -->
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="channel_search" placeholder="🔍 搜索频道名称..." oninput="debounceSearchChannels()"
+                        style="width: 100%; padding: 8px 12px; font-size: 0.9em;">
+                    <button id="check_btn" class="btn btn-sm" onclick="checkPageConnectivity()"
+                        style="white-space: nowrap; background: #8b5cf6; display: none;">🚀 检测本页连通性</button>
+                    <button id="refresh_epg_btn" class="btn btn-sm" onclick="refreshEPG()"
+                        style="white-space: nowrap; background: #10b981; display: none;">🔄 刷新节目表</button>
+                </div>
+            </div>
+
+            <!-- Scrollable Body -->
+            <div id="channel_list_container" onscroll="handleModalScroll(this)"
+                style="padding: 0 24px 24px; overflow-y: auto; flex-grow: 1;">
+                <div id="channel_list">加载中...</div>
+            </div>
+
+            <div
+                style="padding: 16px; border-top: 1px solid var(--glass-border); text-align: right; background: rgba(30,30,45,0.98); flex-shrink: 0;">
+                <button class="btn" onclick="closePreview()" style="background: rgba(255,255,255,0.1);">关闭预览</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="status"></div>
+    <div id="toast-container"></div>
+
+    <script>
+        // Global Debounce Timer
+        window.previewDebounceTimer = null;
+        window.searchDebounceTimer = null;
+        let currentSubTab = 'normal';
+
+        function switchSubTab(mode) {
+            currentSubTab = mode;
+            const tabNormal = document.getElementById('tab_normal');
+            const tabGit = document.getElementById('tab_git');
+            const uaGroup = document.getElementById('ua_form_group');
+            const urlInput = document.getElementById('sub_url');
+
+            if (mode === 'normal') {
+                tabNormal.classList.add('active');
+                tabGit.classList.remove('active');
+                uaGroup.style.display = 'block';
+                urlInput.placeholder = "M3U URL (多个地址请用英文逗号隔开)";
+            } else {
+                tabGit.classList.add('active');
+                tabNormal.classList.remove('active');
+                uaGroup.style.display = 'none';
+                urlInput.placeholder = "Git 仓库 URL (例如: https://github.com/YueChan/Live.git)";
+            }
+        }
+
+        function debounceUpdatePreview() {
+            clearTimeout(window.previewDebounceTimer);
+            window.previewDebounceTimer = setTimeout(updateRealtimePreview, 300);
+        }
+
+        function debounceSearchChannels() {
+            clearTimeout(window.searchDebounceTimer);
+            window.searchDebounceTimer = setTimeout(searchChannels, 300);
+        }
+
+        function formatDate(isoStr) {
+            if (!isoStr) return '从未更新';
+            // Backend uses UTC (utcnow) without timezone info. 
+            // We treat it as UTC by appending 'Z' so browser converts to local time (China).
+            const dateStr = isoStr.endsWith('Z') ? isoStr : isoStr + 'Z';
+            const d = new Date(dateStr);
+            return d.toLocaleString('zh-CN', { hour12: false });
+        }
+
+        // ... (fetchSubs is unchanged) ...
+
+        let currentChannels = [];
+        let filteredChannels = [];
+        let renderOffset = 0;
+        const RENDER_SIZE = 100;
+
+        function prepareModal(titleText, showCheckBtn = false) {
+            const modal = document.getElementById('channel_modal');
+            const title = document.getElementById('modal_title');
+            const list = document.getElementById('channel_list');
+            const container = document.getElementById('channel_list_container');
+            const searchInput = document.getElementById('channel_search');
+
+            // Toggle Check Button
+            const checkBtn = document.getElementById('check_btn');
+            if (checkBtn) {
+                checkBtn.style.display = showCheckBtn ? 'block' : 'none';
+            }
+
+            title.innerText = titleText;
+            list.innerHTML = '正在加载...';
+            searchInput.value = ''; // Reset search
+
+            // Refresh EPG button logic
+            const refreshEpgBtn = document.getElementById('refresh_epg_btn');
+            if (refreshEpgBtn) {
+                refreshEpgBtn.style.display = window.currentEPGUrl ? 'block' : 'none';
+            }
+
+            modal.style.setProperty('display', 'flex', 'important');
+            document.body.style.overflow = 'hidden';
+            container.scrollTop = 0;
+            renderOffset = 0;
+        }
+
+        async function viewChannels(id, name) {
+            window.currentEPGUrl = null; // Sub view has no unified EPG
+            prepareModal(`预览: ${name}`);
+            try {
+                const res = await fetch(`/subscriptions/${id}/channels`);
+                const data = await res.json();
+                // Add source info manually for single sub
+                currentChannels = data.map(c => ({ ...c, source: name }));
+                filteredChannels = currentChannels;
+                renderBaseTable(document.getElementById('channel_list'));
+            } catch (err) {
+                document.getElementById('channel_list').innerHTML = '加载失败: ' + err.message;
+            }
+        }
+
+        async function viewOutputPreview(slug, name) {
+            prepareModal(`预览聚合: ${name}`, true); // Pass true to show Check button
+            window.currentEPGUrl = null;
+
+            // Find config from global allOutputs
+            const out = allOutputs.find(o => o.slug === slug);
+            if (out) window.currentEPGUrl = out.epg_url;
+            if (!out) {
+                document.getElementById('channel_list').innerHTML = '无法找到聚合配置，请刷新页面重试';
+                return;
+            }
+
+            try {
+                // Parse config
+                let keywords = [];
+                try {
+                    const parsed = JSON.parse(out.keywords || "[]");
+                    parsed.forEach(k => {
+                        if (typeof k === 'string') keywords.push(k); // Legacy string support? Backend handles it?
+                        // Actually backend preview_output expects: 
+                        // keywords: list of {value, group} or strings.
+                        // Our parsing logic in prepareEditOutput handles this.
+                        // Let's just pass the parsed JSON object directly.
+                        if (typeof k === 'string') keywords.push({ value: k, group: '' });
+                        else keywords.push(k);
+                    });
+                } catch (e) { }
+
+                const subIds = JSON.parse(out.subscription_ids || "[]");
+
+                const payload = {
+                    subscription_ids: subIds,
+                    keywords: keywords,
+                    filter_regex: out.filter_regex
+                };
+
+                const res = await fetch('/outputs/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                // data is object { "Group": [channels...] }
+                // We need to flatten it for the table
+                let flatChannels = [];
+                for (const [key, list] of Object.entries(data)) {
+                    // key is the keyword that matched, we can maybe add it to the display?
+                    // The user just wants a list.
+                    flatChannels = flatChannels.concat(list);
+                }
+
+                currentChannels = flatChannels;
+                filteredChannels = flatChannels;
+                renderBaseTable(document.getElementById('channel_list'));
+            } catch (err) {
+                document.getElementById('channel_list').innerHTML = '预览加载失败: ' + err.message;
+            }
+        }
+
+        function searchChannels() {
+            const query = document.getElementById('channel_search').value.toLowerCase().trim();
+            if (!query) {
+                filteredChannels = currentChannels;
+            } else {
+                filteredChannels = currentChannels.filter(c => c.name.toLowerCase().includes(query) || c.group.toLowerCase().includes(query));
+            }
+            renderOffset = 0;
+            document.getElementById('channel_list_container').scrollTop = 0;
+            renderBaseTable(document.getElementById('channel_list'));
+        }
+
+        function renderBaseTable(list) {
+            if (filteredChannels.length === 0) {
+                list.innerHTML = '<p style="text-align:center; padding: 20px;">暂无匹配内容</p>';
+                return;
+            }
+
+            list.innerHTML = `
+                <table class="channel-table-container" style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                    <thead>
+                        <tr style="text-align: left; border-bottom: 2px solid var(--primary);">
+                            <th style="padding: 10px; width: 60px;">Logo</th>
+                            <th style="padding: 10px;">名称</th>
+                            <th style="padding: 10px;">tvg-id</th>
+                            <th style="padding: 10px;">当前节目</th>
+                            <th style="padding: 10px;">分组</th>
+                            <th style="padding: 10px;">来源</th>
+                            <th style="padding: 10px; width: 100px;">可用性</th>
+                        </tr>
+                    </thead>
+                    <tbody id="channel_tbody"></tbody>
+                </table>
+                <div id="load_more_container" style="text-align: center; padding: 20px;">
+                    <button class="btn" style="min-width: 200px;" onclick="renderNextBatch()">查看更多 (剩余 ${filteredChannels.length} 条)</button>
+                </div>
+            `;
+            renderNextBatch();
+        }
+
+
+
+        function renderNextBatch() {
+            const list = document.getElementById('channel_tbody');
+            const end = Math.min(renderOffset + RENDER_SIZE, filteredChannels.length);
+            const batch = filteredChannels.slice(renderOffset, end);
+
+            const html = batch.map(c => {
+                let statusHtml = '<span style="opacity: 0.3;">-</span>';
+                if (c.status !== undefined) {
+                    if (c.status) {
+                        statusHtml = `<span style="color: #10b981; font-size: 0.85em;">✅ ${c.latency}ms</span>`;
+                    } else {
+                        statusHtml = `<span style="color: #ef4444; font-size: 0.85em;" title="${c.error || 'Unknown'}">❌ 失败</span>`;
+                    }
+                } else if (c.checking) {
+                    statusHtml = `<span style="color: #fbbf24; font-size: 0.85em;">⏳ 检测中...</span>`;
+                }
+
+                return `
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <td style="padding: 10px;">${c.logo ? `<img src="${c.logo}" style="height:30px; border-radius:4px" onerror="this.style.display='none'">` : ''}</td>
+                    <td style="padding: 10px;">${c.name}</td>
+                    <td style="padding: 10px; font-size: 0.8em; opacity: 0.6;">${c.tvg_id || '-'}</td>
+                    <td id="epg_${renderOffset}_${batch.indexOf(c)}" style="padding: 10px; font-size: 0.85em; color: #a5b4fc;">
+                        ${window.currentEPGUrl ? '⏳ 加载中...' : '<span style="opacity:0.3">未设置 EPG</span>'}
+                    </td>
+                    <td style="padding: 10px;">${c.group || 'Default'}</td>
+                    <td style="padding: 10px; font-size: 0.85em; opacity: 0.7;">${c.source || 'Unknown'}</td>
+                    <td style="padding: 10px;">${statusHtml}</td>
+                </tr>
+            `}).join('');
+
+            if (renderOffset === 0) {
+                list.innerHTML = html;
+            } else {
+                list.insertAdjacentHTML('beforeend', html);
+            }
+
+            // Trigger EPG loading for the batch
+            if (window.currentEPGUrl) {
+                batch.forEach((c, idx) => {
+                    loadChannelEPG(window.currentEPGUrl, c.tvg_id, c.name, `epg_${renderOffset}_${idx}`);
+                });
+            }
+
+            renderOffset = end;
+
+            // Update Load More Button
+            const btnContainer = document.getElementById('load_more_container');
+            if (renderOffset >= filteredChannels.length) {
+                btnContainer.style.display = 'none';
+            } else {
+                btnContainer.style.display = 'block';
+                btnContainer.querySelector('button').innerText = `查看更多 (剩余 ${filteredChannels.length - renderOffset} 条)`;
+            }
+        }
+
+        async function loadChannelEPG(epgUrl, tvgId, tvgName, cellId) {
+            try {
+                const isRefresh = !!window.forceRefreshEPG;
+                const url = `/api/epg/current?epg_url=${encodeURIComponent(epgUrl)}&tvg_id=${encodeURIComponent(tvgId || '')}&tvg_name=${encodeURIComponent(tvgName || '')}&refresh=${isRefresh}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const cell = document.getElementById(cellId);
+                if (cell) {
+                    cell.innerText = data.program || '无节目信息';
+                    if (data.program && data.program !== 'No Program Info') {
+                        cell.style.color = '#34d399'; // Greenish for matches
+                    } else {
+                        cell.style.opacity = '0.5';
+                    }
+                }
+            } catch (e) {
+                const cell = document.getElementById(cellId);
+                if (cell) cell.innerText = '加载失败';
+            }
+        }
+
+        async function refreshEPG() {
+            if (!window.currentEPGUrl) return;
+            const btn = document.getElementById('refresh_epg_btn');
+            btn.innerText = '正在更新...';
+            btn.disabled = true;
+
+            window.forceRefreshEPG = true;
+            renderOffset = 0;
+            document.getElementById('channel_list_container').scrollTop = 0;
+            renderBaseTable(document.getElementById('channel_list'));
+            window.forceRefreshEPG = false;
+
+            btn.innerText = '🔄 刷新节目表';
+            btn.disabled = false;
+        }
+
+        async function checkPageConnectivity() {
+            if (filteredChannels.length === 0) return;
+            const confirmMsg = `即将检测当前筛选出的 ${filteredChannels.length} 个频道的连通性 (耗时较长)，确定继续吗？`;
+            if (filteredChannels.length > 500 && !confirm(confirmMsg)) return;
+
+            // Mark all as checking
+            filteredChannels.forEach(c => c.checking = true);
+
+            // Re-render immediately to show spinners
+            renderOffset = 0;
+            document.getElementById('channel_list_container').scrollTop = 0;
+            renderBaseTable(document.getElementById('channel_list'));
+
+            // Process in batches of 50 to avoid creating too many concurrent connections
+            // But we send to backend as one big list? No, backend concurrency is also limited by OS usually.
+            // Let's iterate in chunks of 50.
+            const chunkSize = 50;
+            for (let i = 0; i < filteredChannels.length; i += chunkSize) {
+                const chunk = filteredChannels.slice(i, i + chunkSize);
+                const urls = chunk.map(c => c.url);
+
+                try {
+                    const res = await fetch('/check-connectivity', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ urls: urls })
+                    });
+                    const results = await res.json();
+
+                    // Update main data
+                    results.forEach(r => {
+                        // Find matching channels in chunk (URL might duplicate so be careful)
+                        // Ideally channel object should match. 
+                        // But we only sent URLs. So all channels with this URL update.
+                        chunk.filter(c => c.url === r.url).forEach(c => {
+                            c.checking = false;
+                            c.status = r.status;
+                            c.latency = r.latency;
+                            c.error = r.error;
+                        });
+                    });
+
+                    // Trigger re-render of CURRENT view if user hasn't scrolled away? 
+                    // Actually simple re-render of currently visible list is enough.
+                    // But to see real-time progress we should re-render.
+                    // Let's just re-render everything visible.
+                    // This is inefficient but simple.
+
+                    // Only re-refresh the table if we are still viewing the same list
+                    // Just force a re-render of visible part could be jarring?
+                    // Let's just update the DOM elements directly? 
+                    // No, re-render whole visible batch is easier.
+                    const currentTop = document.getElementById('channel_list_container').scrollTop;
+                    const limit = Math.max(renderOffset, 100);
+                    // We temporarily reset renderOffset to 0 and re-render up to limit?
+                    // Actually renderBaseTable resets renderOffset to 0. 
+
+                    // Hack: Just re-render the visible table content?
+                    // Let's just update styles for simplicty or re-render
+                    // Ideally we should find the row and update it.
+                    // But we used innerHTML. 
+
+                    // Simple approach: re-render table from scratch, but keep scroll pos?
+                    // renderBaseTable resets. 
+
+                } catch (err) {
+                    console.error("Check failed for batch", err);
+                    chunk.forEach(c => { c.checking = false; c.error = "Check Failed"; });
+                }
+                // Re-render completely every batch to show progress
+                // But we need to maintain scroll position and loaded amount
+                const oldOffset = renderOffset;
+                renderOffset = 0; // Reset to render from top
+                renderBaseTable(document.getElementById('channel_list'));
+
+                // Restore loaded amount (render loop)
+                while (renderOffset < oldOffset) {
+                    renderNextBatch();
+                }
+            }
+
+            // Final render
+            renderOffset = 0;
+            renderBaseTable(document.getElementById('channel_list'));
+        }
+
+        async function fetchSubs() {
+            const res = await fetch('/subscriptions/');
+            const data = await res.json();
+
+            // Render Subscription Management List
+            const list = document.getElementById('sub_list');
+            list.innerHTML = data.map(s => {
+                const statusColor = s.last_update_status && s.last_update_status.startsWith('Error') ? '#ef4444' : '#10b981';
+                const opacity = s.is_enabled ? '1' : '0.5';
+                const toggleText = s.is_enabled ? '禁用' : '启用';
+                const toggleColor = s.is_enabled ? '#f59e0b' : '#10b981';
+
+                return `
+                <div id="sub_item_${s.id}" class="sub-item" style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--glass-border); padding-bottom: 8px; opacity: ${opacity};">
+                    <div style="cursor: pointer; flex-grow: 1;" onclick="viewChannels(${s.id}, '${s.name || s.url}')">
+                        <strong style="color: ${s.name ? 'inherit' : '#94a3b8'};">${s.name || '未命名订阅 (' + s.url.substring(0, 20) + '...)'}</strong>
+                        ${!s.is_enabled ? '<span style="background: #64748b; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7em; margin-left: 8px;">已禁用</span>' : ''}
+                        <br>
+                        <small style="opacity: 0.6;">${s.url.substring(0, 50)}...</small>
+                        <div style="font-size: 0.8em; margin-top: 4px; opacity: 0.8;">
+                            📅 ${formatDate(s.last_updated)} 
+                            <span style="color: ${statusColor}; margin-left: 8px;">
+                                ${s.last_update_status || '等待更新'}
+                            </span>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-sm" style="background: ${toggleColor};" onclick="toggleSubActive(${s.id}, ${s.is_enabled})">${toggleText}</button>
+                        <button class="btn btn-sm" style="background: var(--primary);" onclick="prepareEditSub(${s.id}, '${(s.name || "").replace(/'/g, "\\'")}', '${s.url}', '${s.user_agent}', ${s.auto_update_minutes || 0}, ${s.is_enabled})">修改</button>
+                        <button class="btn btn-sm" style="background: #10b981;" onclick="refreshSub(${s.id})">刷新</button>
+                        <button class="btn btn-sm" style="background: #3b82f6;" onclick="viewChannels(${s.id}, '${(s.name || s.url).replace(/'/g, "\\'")}')">查看</button>
+                        <button class="btn btn-sm" style="background: #ef4444;" onclick="deleteSub(${s.id})">删除</button>
+                    </div>
+                </div>
+            `}).join('') || '暂无订阅';
+
+            // Render Multi-Selector in Output part (Filter enabled ONLY)
+            const selector = document.getElementById('sub_selector');
+            selector.innerHTML = data.filter(s => s.is_enabled).map(s => `
+                <label class="sub-checkbox-item">
+                    <input type="checkbox" name="selected_subs" value="${s.id}" onchange="debounceUpdatePreview()">
+                    <span>${s.name || s.url}</span>
+                </label>
+            `).join('') || (data.length > 0 ? '所有订阅均已禁用' : '请先添加订阅源');
+        }
+
+        function prepareEditSub(id, name, url, ua, autoMinutes, isEnabled) {
+            document.getElementById('edit_sub_id').value = id;
+            document.getElementById('sub_is_enabled').value = isEnabled === undefined ? true : isEnabled;
+            document.getElementById('sub_name').value = name;
+            document.getElementById('sub_url').value = url;
+            document.getElementById('sub_ua').value = ua;
+            // Set auto update select
+            document.getElementById('sub_auto_update').value = autoMinutes || 0;
+
+            // Auto switch tab
+            if (url.endsWith('.git') || url.includes('.git/') || (url.includes('github.com') && !url.includes('/raw/'))) {
+                switchSubTab('git');
+            } else {
+                switchSubTab('normal');
+            }
+
+            document.getElementById('sub_form_title').innerText = '📝 修改订阅源';
+            document.getElementById('sub_btn').innerText = '保存修改';
+            document.getElementById('sub_cancel_btn').style.display = 'block';
+            document.getElementById('sub_form_container').classList.add('edit-mode');
+
+            // Highlight item
+            document.querySelectorAll('.sub-item').forEach(el => el.style.opacity = '0.4');
+            document.getElementById(`sub_item_${id}`).style.opacity = '1';
+        }
+
+        function cancelEditSub() {
+            document.getElementById('edit_sub_id').value = '';
+            document.getElementById('sub_name').value = '';
+            document.getElementById('sub_url').value = '';
+            document.getElementById('sub_ua').value = '';
+            document.getElementById('sub_auto_update').value = '0';
+
+            switchSubTab('normal');
+
+            document.getElementById('sub_form_title').innerText = '➕ 添加订阅源';
+            document.getElementById('sub_btn').innerText = '添加订阅';
+            document.getElementById('sub_cancel_btn').style.display = 'none';
+            document.getElementById('sub_form_container').classList.remove('edit-mode');
+            document.querySelectorAll('.sub-item').forEach(el => el.style.opacity = '1');
+        }
+
+        // Tag Handling Logic
+        // keywords is now an Array of Objects: { value: 'k', group: 'g' }
+        let keywords = [];
+
+        document.getElementById('tag_input').addEventListener('keydown', handleTagInput);
+
+        function handleTagInput(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const input = document.getElementById('tag_input');
+                const val = input.value.trim();
+
+                if (val) {
+                    // Check duplicate values
+                    const exists = keywords.some(k => k.value === val);
+                    if (!exists) {
+                        keywords.push({ value: val, group: '' });
+
+                        // Force active keyword to the new one
+                        activeKeyword = val;
+
+                        // Clear input BEFORE renderTags reads it to recreate the element
+                        input.value = '';
+                        renderTags();
+
+                        // Debounce preview update
+                        clearTimeout(window.previewDebounceTimer);
+                        window.previewDebounceTimer = setTimeout(updateRealtimePreview, 300);
+                    } else {
+                        // If duplicate, just clear input
+                        input.value = '';
+                    }
+                }
+            }
+        }
+
+        // Global state for preview
+        let lastPreviewData = {};
+        let activeKeyword = null; // Stores value string
+
+        function renderTags() {
+            const container = document.getElementById('tag_container');
+            const input = document.getElementById('tag_input');
+
+            // Remove old tags
+            container.querySelectorAll('.tag').forEach(el => el.remove());
+
+            // Build HTML
+            const tagsHtml = keywords.map(k => {
+                const isActive = k.value === activeKeyword ? 'active-tag' : '';
+                const display = k.group ? `${k.value} <span style="opacity:0.6; font-size:0.9em">→ ${k.group}</span>` : k.value;
+                return `
+                    <span class="tag ${isActive}" onclick="selectKeyword('${k.value.replace(/'/g, "\\'")}')">
+                        ${display}
+                        <span class="tag-remove" onclick="event.stopPropagation(); removeTag('${k.value.replace(/'/g, "\\'")}')">&times;</span>
+                    </span>
+                `;
+            }).join('');
+
+            // Restore innerHTML safely
+            container.innerHTML = tagsHtml + `
+                <div style="display: flex; flex-grow: 1; align-items: center; gap: 5px;">
+                    <input type="text" id="tag_input" placeholder="关键字" value="${input.value}"
+                        style="background: transparent; border: none; outline: none; flex-grow: 2; padding: 0;">
+                </div>
+            `;
+
+            // Re-bind events
+            document.getElementById('tag_input').addEventListener('keydown', handleTagInput);
+            document.getElementById('tag_input').focus();
+        }
+
+        function removeTag(val) {
+            keywords = keywords.filter(k => k.value !== val);
+            if (activeKeyword === val) {
+                activeKeyword = keywords.length > 0 ? keywords[keywords.length - 1].value : null;
+            }
+            renderTags();
+            // Debounce
+            clearTimeout(window.previewDebounceTimer);
+            window.previewDebounceTimer = setTimeout(updateRealtimePreview, 300);
+        }
+
+        function selectKeyword(k) {
+            activeKeyword = k;
+            renderTags();
+            renderSelectedPreview();
+        }
+
+        function updateKeywordGroup(val, newGroup) {
+            const kObj = keywords.find(k => k.value === val);
+            if (kObj) {
+                kObj.group = newGroup.trim();
+                renderTags(); // Update tag display
+                // Update preview group header immediately if active
+                // Also need to push changes to backend to affect matching if backend uses group? 
+                // Currently backend matching uses keyword value. Group is just for output.
+                // So strict backend preview update might not be needed for matching results, but good for sync.
+                // However, let's just update UI for responsiveness.
+
+                // Actually, let's trigger a debounced update just in case
+                clearTimeout(window.previewDebounceTimer);
+                window.previewDebounceTimer = setTimeout(updateRealtimePreview, 500);
+            }
+        }
+
+        function renderSelectedPreview() {
+            const previewWin = document.getElementById('preview_window');
+
+            if (!activeKeyword || !lastPreviewData) {
+                if (keywords.length === 0 && lastPreviewData && lastPreviewData["All"]) {
+                    // Hide for now or render All without grouping edit
+                    previewWin.style.display = 'none';
+                    return;
+                }
+                previewWin.style.display = 'none';
+                return;
+            }
+
+            const kObj = keywords.find(k => k.value === activeKeyword);
+            if (!kObj) {
+                previewWin.style.display = 'none';
+                return;
+            }
+
+            // Calculate display key to find data
+            const displayKey = kObj.group ? `${kObj.value} → ${kObj.group}` : kObj.value;
+
+            // Use kObj to render header even if no channels
+            renderPreviewGroup(kObj, lastPreviewData[displayKey] || []);
+        }
+
+        function renderPreviewGroup(kObj, channels) {
+            const previewWin = document.getElementById('preview_window');
+            if (!kObj) return;
+
+            const key = kObj.value;
+            const groupVal = kObj.group || '';
+
+            const channelsHtml = (channels && channels.length > 0) ? channels.map(c => `
+                    <div class="preview-item">
+                        ${c.logo ? `<img src="${c.logo}" onerror="this.style.display='none'">` : '<div style="width:20px"></div>'}
+                        <div style="flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <strong>${c.name}</strong><br>
+                            <small style="opacity: 0.8; font-size: 0.85em; color: #a5b4fc;">来源: ${c.source}</small>
+                        </div>
+                        <small style="opacity: 0.4; margin-left: 5px;">${c.group || 'Default'}</small>
+                    </div>
+                `).join('') : '<div style="opacity: 0.5; padding: 10px;">该标签下没有匹配的频道</div>';
+
+            const html = `
+                <div id="preview-group-${key}" style="margin-top: 5px; border-left: 3px solid var(--primary); padding-left: 8px; margin-bottom: 5px; background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: space-between; padding-right: 10px;">
+                    <div>
+                        <small style="color: var(--primary); font-weight: bold; text-transform: uppercase;">${key}</small>
+                        <span style="font-size: 0.8em; opacity: 0.5; margin-left: 5px;">匹配: ${channels ? channels.length : 0}</span>
+                    </div>
+                    <input type="text" placeholder="设置分组" value="${groupVal}" 
+                        onchange="updateKeywordGroup('${key.replace(/'/g, "\\'")}', this.value)"
+                        style="background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 4px; padding: 2px 8px; width: 120px; font-size: 0.85em; color: #fff;">
+                </div>
+                ${channelsHtml}
+            `;
+
+            previewWin.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 5px;">
+                    <span style="opacity: 0.7; font-size: 0.8em;">匹配与分组设置:</span>
+                    <span onclick="document.getElementById('preview_window').style.display='none'" 
+                          style="cursor:pointer; font-size: 1.2em; line-height: 0.5; opacity: 0.8;">&times;</span>
+                </div>
+                ${html}`;
+            previewWin.style.display = 'block';
+        }
+
+        // Toast Notification System
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+
+            let icon = 'ℹ️';
+            if (type === 'success') icon = '✅';
+            if (type === 'error') icon = '❌';
+
+            toast.innerHTML = `<span style="margin-right:8px">${icon}</span> ${message}`;
+
+            container.appendChild(toast);
+
+            // Auto remove
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- END TOAST SYSTEM ---
+
+        async function updateRealtimePreview() {
+            const previewWin = document.getElementById('preview_window');
+            const selectedSubs = Array.from(document.querySelectorAll('input[name="selected_subs"]:checked')).map(cb => parseInt(cb.value));
+
+            if (selectedSubs.length === 0 && keywords.length === 0) {
+                previewWin.style.display = 'none';
+                return;
+            }
+
+            const data = {
+                subscription_ids: selectedSubs,
+                keywords: keywords,
+                filter_regex: document.getElementById('out_regex').value || ".*"
+            };
+
+            try {
+                const res = await fetch('/outputs/preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const groupedResults = await res.json();
+                lastPreviewData = groupedResults;
+
+                if (keywords.length > 0) {
+                    // Check if activeKeyword is valid
+                    if (!activeKeyword || !keywords.some(k => k.value === activeKeyword)) {
+                        activeKeyword = keywords[keywords.length - 1].value;
+                    }
+                } else {
+                    activeKeyword = null;
+                }
+
+                renderTags();
+                renderSelectedPreview();
+
+            } catch (err) {
+                console.error('Preview failed:', err);
+                previewWin.style.display = 'none';
+            }
+        }
+
+        // Removed duplicate declarations of currentChannels, renderOffset, RENDER_SIZE
+        // They are already declared above.
+        // We only needed to add filteredChannels if it wasn't there, but let's check.
+        // Actually, filteredChannels was NOT in the previous code I read, so I should declare it ONCE at the top or near the others.
+        // But since I pasted a huge block that included them again, I need to remove this block's declarations.
+
+        // This tool call targets the area where I likely pasted the duplicates.
+        // I will just remove the lines that say "let currentChannels..." etc down to the function viewChannels if they are duplicates.
+
+        // Wait, looking at the previous diff, I inserted a big block at line 170.
+        // And there were existing declarations at line 568 (which pushed down).
+        // I should have replaced the existing functions instead of just inserting.
+        // I will clean up by consolidating the variables.
+
+        // Actually, let's just delete the duplicate declarations if they appear later in the file, 
+        // OR better, since I replaced the top part, I might have left the old bottom part.
+        // I'll search for the second occurrence and remove it, or rewrite the file section to be clean.
+
+
+        // Duplicate functions removed.
+
+        function closePreview() {
+            const modal = document.getElementById('channel_modal');
+            modal.style.setProperty('display', 'none', 'important');
+            document.body.style.overflow = '';
+        }
+
+        function handleModalScroll(el) {
+            const btt = document.getElementById('back-to-top');
+            if (el.scrollTop > 600) {
+                btt.style.display = 'flex';
+            } else {
+                btt.style.display = 'none';
+            }
+        }
+
+        function scrollToTop() {
+            document.getElementById('channel_list_container').scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        async function deleteSub(id) {
+            console.log('Attempting to delete subscription:', id);
+            if (!confirm('确定要删除这个订阅吗？')) return;
+            // Double confirmation for sub
+            if (!confirm('再次确认：删除订阅将移除相关数据，确定吗？')) return;
+
+            try {
+                const res = await fetch(`/subscriptions/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    showStatus('删除成功');
+                    fetchSubs();
+                } else {
+                    const error = await res.text();
+                    console.error('Delete failed:', error);
+                    alert('删除失败: ' + error);
+                }
+            } catch (err) {
+                console.error('Network error during delete:', err);
+                alert('网络错误，无法连接服务器');
+            }
+        }
+
+        function toggleAllSubs(mode) {
+            const checkboxes = document.querySelectorAll('input[name="selected_subs"]');
+            checkboxes.forEach(cb => {
+                if (mode === 1) cb.checked = true;
+                else cb.checked = !cb.checked;
+            });
+            debounceUpdatePreview();
+        }
+
+        async function addSubscription() {
+            const editId = document.getElementById('edit_sub_id').value;
+            const nameInput = document.getElementById('sub_name').value.trim();
+            const urlInput = document.getElementById('sub_url').value;
+            const uaInput = document.getElementById('sub_ua').value;
+            const autoMinutes = parseInt(document.getElementById('sub_auto_update').value);
+
+            // Split URLs by comma or newline
+            const urls = urlInput.split(/[\n,]+/).map(u => u.trim()).filter(u => u);
+
+            if (urls.length === 0) {
+                alert("请输入至少一个订阅地址");
+                return;
+            }
+
+            if (editId) {
+                // Edit Mode: Only allow single URL update (complex to batch edit)
+                if (urls.length > 1) {
+                    showToast("修改模式下不支持批量输入，请只保留一个 URL", "error");
+                    return;
+                }
+                await submitSingleSub(editId, nameInput, urls[0], uaInput, autoMinutes, 'PUT');
+            } else {
+                // Add Mode: Support Batch
+                showStatus(`准备添加 ${urls.length} 个订阅...`);
+                let successCount = 0;
+
+                for (let i = 0; i < urls.length; i++) {
+                    const u = urls[i];
+                    // Name generation: "Name", "Name_2", "Name_3"...
+                    let name = nameInput;
+                    if (urls.length > 1 && nameInput) {
+                        name = (i === 0) ? nameInput : `${nameInput}_${i + 1}`;
+                    }
+
+                    const ok = await submitSingleSub(null, name, u, uaInput, autoMinutes, 'POST');
+                    if (ok) successCount++;
+                }
+
+                if (successCount > 0) {
+                    showStatus(`成功添加 ${successCount} / ${urls.length} 个订阅`);
+                    fetchSubs();
+                    cancelEditSub();
+                }
+            }
+        }
+
+        async function submitSingleSub(id, name, url, ua, autoMinutes, method) {
+            const sub = {
+                name: name,
+                url: url,
+                user_agent: ua,
+                headers: "{}",
+                auto_update_minutes: autoMinutes,
+                is_enabled: document.getElementById('sub_is_enabled').value === 'false' ? false : true
+            };
+
+            const apiUrl = id ? `/subscriptions/${id}` : '/subscriptions/';
+
+            try {
+                const res = await fetch(apiUrl, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sub)
+                });
+
+                if (res.ok) {
+                    if (method === 'PUT') {
+                        showToast('修改成功', 'success');
+                        fetchSubs();
+                        cancelEditSub();
+                    }
+                    return true;
+                } else {
+                    const error = await res.json();
+                    const msg = error.detail || '未知错误';
+                    console.error(`Failed to save ${url}:`, msg);
+                    if (method === 'PUT') showToast('保存失败: ' + msg, 'error');
+                    return false;
+                }
+            } catch (err) {
+                console.error(`Network error for ${url}:`, err);
+                if (method === 'PUT') showToast('网络连接失败', 'error');
+                return false;
+            }
+        }
+
+        async function toggleSubActive(id, currentStatus) {
+            // Fetch current sub data
+            const res = await fetch('/subscriptions/');
+            const subs = await res.json();
+            const sub = subs.find(s => s.id === id);
+            if (!sub) return;
+
+            sub.is_enabled = !currentStatus;
+
+            const putRes = await fetch(`/subscriptions/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(sub)
+            });
+
+            if (putRes.ok) {
+                showStatus(sub.is_enabled ? '已启用' : '已禁用');
+                fetchSubs();
+            }
+        }
+
+        async function refreshSub(id) {
+            showStatus('正在抓取中...');
+            const res = await fetch(`/subscriptions/${id}/refresh`, { method: 'POST' });
+            if (res.ok) {
+                const data = await res.json();
+                showStatus(`刷新成功: ${data.message}`);
+            } else {
+                showStatus('刷新失败，请检查 URL 或网络');
+            }
+        }
+
+        async function deleteOutput(id) {
+            console.log('触发删除聚合:', id);
+            if (!confirm('确定删除此聚合列表吗？')) return;
+            // Double confirmation
+            if (!confirm('再次确认：此操作不可恢复，确定要删除吗？')) return;
+
+            try {
+                const res = await fetch(`/outputs/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    fetchOutputs();
+                } else {
+                    alert('删除失败');
+                }
+            } catch (err) {
+                alert('操作失败: ' + err.message);
+            }
+        }
+        // Expose to window to prevent scope issues
+        window.deleteOutput = deleteOutput;
+
+        let allOutputs = [];
+
+        function prepareEditOutput(id) {
+            const out = allOutputs.find(o => o.id === id);
+            if (!out) return;
+
+            document.getElementById('edit_output_id').value = out.id;
+            document.getElementById('out_name').value = out.name;
+            document.getElementById('out_slug').value = out.slug;
+            document.getElementById('out_regex').value = out.filter_regex;
+            document.getElementById('out_epg').value = out.epg_url || "";
+            document.getElementById('out_include_suffix').checked = out.include_source_suffix !== false;
+
+            // Restore Keywords (Handle legacy array of strings or new array of objects)
+            keywords = [];
+            let parsedKeys = [];
+            try {
+                parsedKeys = JSON.parse(out.keywords || "[]");
+            } catch (e) { parsedKeys = []; }
+
+            parsedKeys.forEach(k => {
+                if (typeof k === 'string') {
+                    keywords.push({ value: k, group: '' });
+                } else if (typeof k === 'object') {
+                    keywords.push(k);
+                }
+            });
+
+            renderTags();
+            activeKeyword = keywords.length > 0 ? keywords[0].value : null;
+
+            // Restore Subscriptions
+            const subIds = JSON.parse(out.subscription_ids || "[]");
+            document.querySelectorAll('input[name="selected_subs"]').forEach(cb => {
+                cb.checked = subIds.includes(parseInt(cb.value));
+            });
+
+            // UI Changes
+            document.getElementById('out_btn').innerText = '保存修改';
+            document.getElementById('out_cancel_btn').style.display = 'block';
+            document.getElementById('out_name').focus();
+
+            // Force preview update
+            debounceUpdatePreview();
+        }
+
+        function cancelEditOutput() {
+            document.getElementById('edit_output_id').value = '';
+            document.getElementById('out_name').value = '';
+            document.getElementById('out_slug').value = '';
+            document.getElementById('out_regex').value = '.*';
+            document.getElementById('out_epg').value = '';
+            document.getElementById('out_include_suffix').checked = true;
+
+            keywords = [];
+            renderTags();
+            activeKeyword = null;
+
+            document.querySelectorAll('input[name="selected_subs"]').forEach(cb => cb.checked = false);
+
+            document.getElementById('out_btn').innerText = '生成专属 M3U 聚合 URL';
+            document.getElementById('out_cancel_btn').style.display = 'none';
+            document.getElementById('preview_window').style.display = 'none';
+        }
+
+        async function saveOutput() {
+            const id = document.getElementById('edit_output_id').value;
+            const name = document.getElementById('out_name').value;
+            const slug = document.getElementById('out_slug').value;
+            const regex = document.getElementById('out_regex').value;
+            const epg = document.getElementById('out_epg').value;
+            const includeSuffix = document.getElementById('out_include_suffix').checked;
+
+            // Gather selected subs
+            const selectedSubs = Array.from(document.querySelectorAll('input[name="selected_subs"]:checked'))
+                .map(cb => parseInt(cb.value));
+
+            if (!name || !slug) {
+                alert('请填写名称和后缀');
+                return;
+            }
+
+            const out = {
+                name: name,
+                slug: slug,
+                filter_regex: regex || ".*",
+                epg_url: epg || "",
+                include_source_suffix: includeSuffix,
+                keywords: JSON.stringify(keywords), // Save array of objects directly
+                subscription_ids: JSON.stringify(selectedSubs)
+            };
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/outputs/${id}` : '/outputs/';
+
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(out)
+            });
+
+            if (res.ok) {
+                showToast(id ? '修改成功' : '列表生成成功！', 'success');
+                fetchOutputs();
+                cancelEditOutput();
+            } else {
+                const err = await res.json();
+                showToast('保存失败: ' + (err.detail || '可能是后缀已存在'), 'error');
+            }
+        }
+
+        async function refreshOutput(id) {
+            showStatus('正在刷新所有关联订阅...');
+            try {
+                const res = await fetch(`/outputs/${id}/refresh`, { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    showStatus('刷新完成');
+                    console.log(data);
+                    fetchOutputs();
+                    fetchSubs(); // Update subs status too
+                } else {
+                    alert('刷新失败');
+                }
+            } catch (err) {
+                alert('网络错误: ' + err.message);
+            }
+        }
+
+        async function fetchOutputs() {
+            try {
+                const res = await fetch('/outputs/');
+                const data = await res.json();
+                allOutputs = data; // Store globally
+                const list = document.getElementById('output_list');
+
+                if (data.length === 0) {
+                    list.innerHTML = '暂无已创建的聚合';
+                    return;
+                }
+
+                list.innerHTML = data.map(o => {
+                    const statusColor = o.last_update_status && o.last_update_status.startsWith('Error') ? '#ef4444' : '#10b981';
+                    return `
+                    <div class="output-item-card">
+                        <div>
+                            <strong>${o.name}</strong>
+                            <small class="slug-badge">${o.slug}</small>
+                        </div>
+                        <div class="url-display" onclick="copyToClipboard('${window.location.origin}/m3u/${o.slug}')">
+                            ${window.location.origin}/m3u/${o.slug}
+                        </div>
+                        <div style="margin-top: 8px; font-size: 0.9em; opacity: 0.7;">
+                            正则: <code>${o.filter_regex || '.*'}</code> | 关键字: ${o.keywords || '无'}
+                        </div>
+                        <div style="font-size: 0.8em; margin-top: 4px; opacity: 0.8;">
+                            📅 ${formatDate(o.last_updated)}
+                            <span style="color: ${statusColor}; margin-left: 8px;">
+                                ${o.last_update_status || '等待刷新'}
+                            </span>
+                        </div>
+                         <div style="font-size: 0.8em; margin-top: 2px; opacity: 0.6;">
+                            📡 最近请求: ${formatDate(o.last_request_time)}
+                        </div>
+                        <div style="margin-top: 10px; display: flex; gap: 10px;">
+                            <button class="btn btn-sm" style="background: var(--primary);" onclick="prepareEditOutput(${o.id})">修改</button>
+                            <button class="btn btn-sm" style="background: #10b981;" onclick="refreshOutput(${o.id})">刷新源</button>
+                            <button class="btn btn-sm" style="background: #3b82f6;" onclick="viewOutputPreview('${o.slug}', '${o.name}')">预览</button>
+                            <button class="btn btn-sm" style="background: #ef4444;" onclick="deleteOutput(${o.id})">删除</button>
+                        </div>
+                    </div>
+                `}).join('');
+            } catch (err) {
+                console.error('Failed to fetch outputs:', err);
+            }
+        }
+
+        async function copyToClipboard(text) {
+            try {
+                // Try modern API first (works on HTTPS or localhost)
+                if (navigator.clipboard) {
+                    await navigator.clipboard.writeText(text);
+                    showStatus('已复制到剪贴板');
+                    return;
+                }
+                throw new Error('Clipboard API unavailable');
+            } catch (err) {
+                // Fallback for HTTP/LAN (insecure context)
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-9999px";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    showStatus('已复制到剪贴板 (Fallback)');
+                } catch (fallbackErr) {
+                    console.error('Copy failed:', fallbackErr);
+                    alert('复制失败，请手动复制: ' + text);
+                }
+            }
+        }
+
+        function showStatus(msg) {
+            const s = document.getElementById('status');
+            s.innerText = msg;
+            s.style.display = 'block';
+            s.style.background = '#6366f1';
+            setTimeout(() => s.style.display = 'none', 3000);
+        }
+
+        fetchSubs();
+        fetchOutputs();
+    </script>
+</body>
+
+</html>
