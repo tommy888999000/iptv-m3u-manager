@@ -28,15 +28,20 @@
 > **注意**：所有数据（数据库、缓存）将持久化在当前目录下的 `data/` 文件夹中。
 
 #### 方案二：本地手动运行
-1. **安装依赖**：
+1. **下载源码**：
+   ```bash
+   git clone https://github.com/XianYuDaXian/iptv-m3u-manager.git
+   cd iptv-m3u-manager
+   ```
+2. **安装依赖**：
    ```bash
    pip install -r requirements.txt
    ```
-2. **启动程序**：
+3. **启动程序**：
    ```bash
    uvicorn main:app --host 0.0.0.0 --port 8000 --reload
    ```
-3. **访问界面**：
+4. **访问界面**：
    - 本机访问：在浏览器打开 `http://localhost:8000`
    - 局域网访问：在浏览器打开 `http://<你的主要IP>:8000`
 

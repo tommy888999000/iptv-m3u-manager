@@ -51,22 +51,16 @@ class StreamChecker:
         ffmpeg_exe = cls.get_ffmpeg_path()
         temp_filename = os.path.join(tempfile.gettempdir(), f"capture_{uuid.uuid4()}.jpg")
         
-        # 核心参数：这些参数必须紧跟在 -i 之前以确保对输入流生效
-        # 尤其是 -allowed_extensions ALL，在 Windows 下对于 .php 结尾的 HLS 流至关重要
-        input_args = [
-            "-protocol_whitelist", "file,http,https,tcp,tls,crypto,rtp,udp",
-            "-allowed_extensions", "ALL",
-            "-hls_flags", "noparse_hevc", # 某些流可能需要这个
-            "-user_agent", "AptvPlayer/1.4.1",
-            "-timeout", "5000000",       # 5秒超时 (单位微秒)
-        ]
-        
-        # 输出参数
-        output_args = [
+        # 使用 -user_agent 参数代替 -headers，并在 -i 前增加 -t 限制探测时长
+        cmd = [
+            ffmpeg_exe,
             "-y",
             "-hide_banner",
             "-loglevel", "error",
-            "-an", "-sn",
+            "-t", "5",          # 输入探测阶段限时 5 秒
+            "-user_agent", "AptvPlayer/1.4.1",
+            "-i", url,
+            "-an", "-sn",       # 禁用音频和字幕
             "-frames:v", "1",
             "-vf", "scale=320:-1",
             "-f", "image2",
@@ -74,28 +68,20 @@ class StreamChecker:
             temp_filename 
         ]
 
-        # 策略 1: 强制 HLS。在 Windows FFmpeg 7.x 中，对于 .php 后缀的 HLS，必须显式 -f hls 且紧跟参数
-        cmd_hls = [ffmpeg_exe] + input_args + ["-f", "hls", "-i", url] + output_args
-        
-        # 策略 2: 自动探测
-        cmd_auto = [ffmpeg_exe] + input_args + ["-i", url] + output_args
-
-        print(f"DEBUG: 尝试捕获截图: {url}")
-
-        async def run_cmd(cmd):
-            def run_ffmpeg():
-                return subprocess.run(cmd, capture_output=True, timeout=20, env=os.environ.copy())
-            return await asyncio.to_thread(run_ffmpeg)
+        print(f"DEBUG: 执行截图命令: {' '.join(cmd)}")
 
         try:
-            # 首先尝试强制 HLS 模式
-            result = await run_cmd(cmd_hls)
-            
-            # 如果 HLS 模式失败，尝试普通模式
-            if result.returncode != 0:
-                print(f"DEBUG: HLS 模式捕获失败 (RC={result.returncode})，尝试自动探测模式...")
-                result = await run_cmd(cmd_auto)
+            def run_ffmpeg():
+                # env 使用 os.environ.copy() 确保在 LXC 环境下的变量继承
+                return subprocess.run(
+                    cmd, 
+                    capture_output=True, 
+                    timeout=15,
+                    env=os.environ.copy()
+                )
 
+            result = await asyncio.to_thread(run_ffmpeg)
+            
             if result.returncode == 0 and os.path.exists(temp_filename) and os.path.getsize(temp_filename) > 0:
                 with open(temp_filename, "rb") as f:
                     img_data = f.read()
@@ -104,9 +90,12 @@ class StreamChecker:
                 return {"url": url, "status": True, "image": f"data:image/jpeg;base64,{b64}"}
             else:
                 err_msg = result.stderr.decode('utf-8', errors='ignore') if result.stderr else "FFmpeg produced no image."
-                # 针对 Windows 的特殊错误记录
-                print(f"DEBUG: [{url}] 检测失败 (RC={result.returncode}): {err_msg[:300]}")
-                return {"url": url, "status": False, "error": "FFmpeg detection failed"}
+                
+                if result.returncode == -11 or result.returncode == 139:
+                    err_msg = f"FFmpeg 进程崩溃 (SIGSEGV, RC={result.returncode})。LXC 容器建议安装系统官方软件包。"
+                
+                print(f"DEBUG: [{url}] 检测失败 (RC={result.returncode}): {err_msg[:200]}")
+                return {"url": url, "status": False, "error": err_msg[:100]}
 
         except subprocess.TimeoutExpired:
             print(f"DEBUG: [{url}] 检测超时")
