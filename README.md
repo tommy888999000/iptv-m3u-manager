@@ -12,6 +12,9 @@
 ### 演示截图
 ![界面演示](assets/demo.webp)
 
+#### 频道有效性检测
+![频道检测](assets/stream_check.png)
+
 ### 运行指南
 
 #### 方案一：Docker 启动（推荐，开箱即用）
