@@ -15,11 +15,16 @@
 ### 运行指南
 
 #### 方案一：Docker 启动（推荐，开箱即用）
-1. **启动容器**：
+1. **下载源码**：
+   ```bash
+   git clone https://github.com/XianYuDaXian/iptv-m3u-manager.git
+   cd iptv-m3u-manager
+   ```
+2. **启动容器**：
    ```bash
    docker-compose up -d
    ```
-2. **访问界面**：在浏览器打开 `http://localhost:8000`
+3. **访问界面**：在浏览器打开 `http://localhost:8000`
 > **注意**：所有数据（数据库、缓存）将持久化在当前目录下的 `data/` 文件夹中。
 
 #### 方案二：本地手动运行
