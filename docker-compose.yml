@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  iptv-manager:
+    build: .
+    container_name: iptv-manager
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      # 将宿主机的 ./data 目录挂载到容器内的 /data
+      # entrypoint.sh 会自动将数据库和缓存链接到这里
+      - ./data:/data
+    environment:
+      - TZ=Asia/Shanghai  # 设置时区，确保 EPG 时间正确

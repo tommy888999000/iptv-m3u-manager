@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+database.db
+repo_cache/
+epg_cache/
+.DS_Store
