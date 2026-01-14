@@ -3,6 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from sqlmodel import Session, select
 import asyncio
 import os
+import json
 from datetime import datetime
 
 from database import engine, create_engine, sqlite_url
@@ -114,6 +115,34 @@ def migrate_db():
             session.exec(text("ALTER TABLE channel ADD COLUMN check_image VARCHAR"))
             session.commit()
 
+        try:
+            session.exec(text("SELECT check_error FROM channel LIMIT 1"))
+        except:
+            print("正在迁移 Channel 表: 添加 check_error 字段")
+            session.exec(text("ALTER TABLE channel ADD COLUMN check_error VARCHAR"))
+            session.commit()
+
+        try:
+            session.exec(text("SELECT is_enabled FROM outputsource LIMIT 1"))
+        except:
+            print("正在迁移 OutputSource 表: 添加 is_enabled 字段")
+            session.exec(text("ALTER TABLE outputsource ADD COLUMN is_enabled BOOLEAN DEFAULT 1"))
+            session.commit()
+
+        try:
+            session.exec(text("SELECT auto_update_minutes FROM outputsource LIMIT 1"))
+        except:
+            print("正在迁移 OutputSource 表: 添加 auto_update_minutes 字段")
+            session.exec(text("ALTER TABLE outputsource ADD COLUMN auto_update_minutes INTEGER DEFAULT 0"))
+            session.commit()
+
+        try:
+            session.exec(text("SELECT auto_visual_check FROM outputsource LIMIT 1"))
+        except:
+            print("正在迁移 OutputSource 表: 添加 auto_visual_check 字段")
+            session.exec(text("ALTER TABLE outputsource ADD COLUMN auto_visual_check BOOLEAN DEFAULT 0"))
+            session.commit()
+
 async def auto_update_task():
     """后台自动同步订阅"""
     while True:
@@ -136,6 +165,85 @@ async def auto_update_task():
                                 print(f"[自动更新] 订阅 {sub.id} 刷新失败: {e}")
                                 sub.last_update_status = f"AutoUpdate Error: {str(e)}"
                                 session.add(sub)
+                                session.commit()
+                
+                # 聚合源自动同步
+                outputs = session.exec(select(OutputSource)).all()
+                for out in outputs:
+                    if out.auto_update_minutes > 0:
+                        now = datetime.utcnow()
+                        last = out.last_updated or datetime.min
+                        elapsed_mins = (now - last).total_seconds() / 60
+                        
+                        if elapsed_mins >= out.auto_update_minutes:
+                            print(f"[自动更新] 正在刷新聚合源 {out.id} ({out.name})...")
+                            try:
+                                sub_ids = json.loads(out.subscription_ids)
+                                for sid in sub_ids:
+                                    sub = session.get(Subscription, sid)
+                                    if sub:
+                                        from routers.subscriptions import process_subscription_refresh
+                                        await process_subscription_refresh(session, sub)
+                                
+                                # 刷新聚合 EPG (如果有)
+                                if out.epg_url:
+                                    from services.epg import fetch_epg_cached
+                                    await fetch_epg_cached(out.epg_url, refresh=True)
+                                
+                                out.last_updated = now
+                                out.last_update_status = f"AutoUpdate Success ({datetime.now().strftime('%H:%M:%S')})"
+                                session.add(out)
+                                session.commit()
+                                print(f"[自动更新] 聚合源 {out.id} 及其关联订阅同步完成。")
+
+                                # 4. 自动化深度检测 (如果开启)
+                                if out.auto_visual_check:
+                                    print(f"[自动同步] 聚合源 {out.id} 开启了同步后深度检测，正在启动...")
+                                    try:
+                                        from services.stream_checker import StreamChecker
+                                        from models import Channel
+                                        
+                                        # 获取该聚合源下所有的频道
+                                        all_channels = []
+                                        for sid in sub_ids:
+                                            chs = session.exec(select(Channel).where(Channel.subscription_id == sid)).all()
+                                            all_channels.extend(chs)
+                                        
+                                        if all_channels:
+                                            print(f"[自动同步] 准备检测 {len(all_channels)} 个频道...")
+                                            
+                                            # 定义带限流的检测函数
+                                            # 复用 visual_check_semaphore 或自定义。因为是后台，给 5 个并发足够
+                                            sem = asyncio.Semaphore(5)
+                                            
+                                            async def bounded_check(ch):
+                                                async with sem:
+                                                    res = await StreamChecker.check_stream_visual(ch.url)
+                                                    return {**res, "ch_id": ch.id}
+
+                                            tasks = [bounded_check(ch) for ch in all_channels]
+                                            results = await asyncio.gather(*tasks)
+                                            
+                                            # 更新数据库
+                                            for res in results:
+                                                if res.get('ch_id'):
+                                                    ch = session.get(Channel, res['ch_id'])
+                                                    if ch:
+                                                        ch.check_status = res['status']
+                                                        ch.check_date = datetime.utcnow()
+                                                        ch.check_image = res.get('image')
+                                                        ch.check_error = res.get('error') if not res['status'] else None
+                                                        # 根据深度检测结果自动处理
+                                                        ch.is_enabled = res['status']
+                                                        session.add(ch)
+                                            session.commit()
+                                            print(f"[自动同步] 聚合源 {out.id} 自动化深度检测任务完成。")
+                                    except Exception as vis_e:
+                                        print(f"[自动同步] 聚合源 {out.id} 自动化深度检测执行失败: {vis_e}")
+                            except Exception as e:
+                                print(f"[自动更新] 聚合源 {out.id} 刷新失败: {e}")
+                                out.last_update_status = f"AutoUpdate Error: {str(e)}"
+                                session.add(out)
                                 session.commit()
         except Exception as outer_e:
             print(f"[自动更新] 循环发生错误: {outer_e}")

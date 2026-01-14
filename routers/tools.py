@@ -64,11 +64,15 @@ async def check_stream_visual(req: CheckRequest, session: Session = Depends(get_
                 ch.check_status = res['status']
                 ch.check_date = datetime.utcnow()
                 ch.check_image = res.get('image') # Base64 格式字符串或 None
+                ch.check_error = res.get('error') if not res['status'] else None # 记录失败原因
                 
-                # 不行就禁用（如果开启了自动处理）
-                if req.auto_disable and not res['status']:
-                    ch.is_enabled = False
-                    res['auto_disabled'] = True # 返回给前端的标识
+                # 自动处理开关启用时：成功则自动开启，失败则自动禁用
+                if req.auto_disable:
+                    ch.is_enabled = res['status']
+                    if not res['status']:
+                        res['auto_disabled'] = True # 标记为自动禁用
+                    else:
+                        res['auto_enabled'] = True # 标记为自动启用
                 
                 res['is_enabled'] = ch.is_enabled 
                 session.add(ch)

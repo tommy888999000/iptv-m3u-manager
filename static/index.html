@@ -141,7 +141,8 @@
             <div class="glass-card">
                 <h2>🛠️ 创建聚合列表</h2>
                 <div class="form-group">
-                    <label style="display: block; margin-bottom: 8px; opacity: 0.8;">1. 名称与后缀</label>
+                    <label
+                        style="display: block; margin-bottom: 8px; opacity: 0.9; font-size: 0.95em; font-weight: 500;">名称与后缀</label>
                     <div style="display: flex; gap: 10px;">
                         <input type="text" id="out_name" placeholder="聚合名称 (例如: 家庭精选)">
                         <input type="text" id="out_slug" placeholder="URL 后缀 (例如: family)">
@@ -151,7 +152,9 @@
                 <div class="form-group">
                     <div
                         style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <label style="display: block; opacity: 0.8; margin: 0;">2. 选择订阅源 (多选)</label>
+                        <label
+                            style="display: block; opacity: 0.9; margin: 0; font-size: 0.95em; font-weight: 500;">选择订阅源
+                            (多选)</label>
                         <div style="display: flex; gap: 5px;">
                             <button class="btn btn-sm" style="font-size: 0.8em; padding: 2px 8px;"
                                 onclick="toggleAllSubs(1)">全选</button>
@@ -163,23 +166,65 @@
                 </div>
 
                 <div class="form-group">
-                    <label style="display: block; margin-bottom: 8px; opacity: 0.8;">3. 高级正则 (可选)</label>
+                    <label
+                        style="display: block; margin-bottom: 8px; opacity: 0.9; font-size: 0.95em; font-weight: 500;">高级正则
+                        (可选)</label>
                     <input type="text" id="out_regex" placeholder="CCTV.* (非专业人士建议留空)" value=".*">
                 </div>
 
                 <div class="form-group">
-                    <label style="display: block; margin-bottom: 8px; opacity: 0.8;">4. EPG 节目预告 (可选)</label>
+                    <label
+                        style="display: block; margin-bottom: 8px; opacity: 0.9; font-size: 0.95em; font-weight: 500;">EPG
+                        节目预告 (可选)</label>
                     <input type="text" id="out_epg" placeholder="EPG XML 链接 (例如: http://epg.51zmt.top:8000/api/xml/)">
                 </div>
 
                 <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
-                    <input type="checkbox" id="out_include_suffix" checked style="width: auto; margin: 0;">
-                    <label for="out_include_suffix" style="margin: 0; opacity: 0.8; font-size: 0.9em;">在频道名后显示订阅源 (例如:
-                        CCTV1 (卫视精品))</label>
+                    <input type="checkbox" id="out_include_suffix" checked
+                        style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+                    <label for="out_include_suffix"
+                        style="margin: 0; opacity: 0.9; font-size: 0.95em; font-weight: 500; cursor: pointer;">在频道名后显示订阅源
+                        (例如: CCTV1 (卫视精品))</label>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="out_is_enabled" checked
+                            style="width: 18px; height: 18px; margin: 0; cursor: pointer;">
+                        <label for="out_is_enabled"
+                            style="margin: 0; opacity: 0.9; font-size: 0.95em; cursor: pointer; font-weight: 500;">启用该聚合源</label>
+                    </div>
+                </div>
+
+                <div class="form-group"
+                    style="display: flex; gap: 12px; align-items: center; margin-bottom: 16px; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);">
+                    <div style="flex: 1;">
+                        <select id="out_auto_update"
+                            style="width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; border-radius: 8px; outline: none; font-size: 0.9em; cursor: pointer;">
+                            <option value="0">自动更新: 关闭 (手动刷新)</option>
+                            <option value="60">自动更新: 每 1 小时</option>
+                            <option value="120">自动更新: 每 2 小时</option>
+                            <option value="240">自动更新: 每 4 小时</option>
+                            <option value="360">自动更新: 每 6 小时</option>
+                            <option value="480">自动更新: 每 8 小时</option>
+                            <option value="720">自动更新: 每 12 小时</option>
+                            <option value="1440">自动更新: 每 24 小时</option>
+                            <option value="10080">自动更新: 每 7 天</option>
+                        </select>
+                    </div>
+                    <div id="auto_visual_toggle_container"
+                        style="flex: 1.2; display: flex; align-items: center; gap: 6px; padding-left: 10px; border-left: 1px solid rgba(255,255,255,0.1);">
+                        <input type="checkbox" id="out_auto_visual"
+                            style="width: 18px; height: 18px; cursor: pointer; margin: 0;">
+                        <label for="out_auto_visual"
+                            style="margin: 0; opacity: 0.8; font-size: 0.85em; cursor: pointer; line-height: 1.2;">更新后自动执行深度检测并启用/禁用频道</label>
+                    </div>
                 </div>
 
                 <div class="form-group" style="position: relative;">
-                    <label style="display: block; margin-bottom: 8px; opacity: 0.8;">5. 关键字筛选 (回车查看下方预览)</label>
+                    <label
+                        style="display: block; margin-bottom: 8px; opacity: 0.9; font-size: 0.95em; font-weight: 500;">关键字筛选
+                        (回车查看下方预览)</label>
                     <div id="tag_container" class="tag-container">
                         <div style="display: flex; flex-grow: 1; align-items: center; gap: 5px;">
                             <input type="text" id="tag_input" placeholder="关键字"
@@ -231,9 +276,11 @@
 
                     <div id="check_options_container"
                         style="display: none; align-items: center; gap: 5px; margin-right: 5px;">
-                        <input type="checkbox" id="auto_disable_check" style="width: auto; cursor: pointer;">
-                        <label for="auto_disable_check"
-                            style="color: #fff; font-size: 0.85em; cursor: pointer; user-select: none;">自动禁用无效源</label>
+                        <label
+                            style="display: flex; align-items: center; gap: 5px; cursor: pointer; color: #fff; opacity: 0.9;">
+                            <input type="checkbox" id="auto_disable_check" style="width: 16px; height: 16px;">
+                            <span style="font-size: 0.9em;">根据结果自动启用/禁用</span>
+                        </label>
                     </div>
                     <button id="check_btn" class="btn btn-sm toolbar-btn" onclick="checkPageConnectivity()"
                         style="background: #8b5cf6; display: none;">🚀 快速检测</button>
@@ -447,12 +494,16 @@
 
                 const data = await res.json();
 
-                // 把结果铺平
+                // 把结果铺平并去重（避免一个频道匹配多个关键字导致多次出现）
+                const seenIds = new Set();
                 let flatChannels = [];
                 for (const [key, list] of Object.entries(data)) {
-                    // key 是匹配到的关键字
-                    // 用户只需要一个列表。
-                    flatChannels = flatChannels.concat(list);
+                    list.forEach(c => {
+                        if (!seenIds.has(c.id)) {
+                            seenIds.add(c.id);
+                            flatChannels.push(c);
+                        }
+                    });
                 }
 
                 currentChannels = flatChannels;
@@ -530,16 +581,36 @@
                 // 深度检测 HTML
                 let visualHtml = '';
                 if (window.lastRenderShowActions) {
-                    // 有这次检测的值就用这次的，没有就用存的
                     const image = c.visualImage || c.check_image;
-                    const status = c.visualStatus || (c.check_image ? 'ok' : null);
+                    const error = c.visualError || c.check_error;
+                    const date = c.check_date;
+
+                    let dateHtml = '';
+                    if (date) {
+                        // 后端返回的是 UTC iso 字符串，前端 new Date(date) 会由于缺 Z 而按本地时间解析
+                        // 强制加 Z 确保按 UTC 解析，消除 8 小时偏移
+                        const dateObj = new Date(date.endsWith('Z') ? date : date + 'Z');
+                        const now = new Date();
+                        const mins = Math.floor((now - dateObj) / 60000);
+                        let timeStr = mins < 60 ? `${mins}分前` : (mins < 1440 ? `${Math.floor(mins / 60)}时前` : `${Math.floor(mins / 1440)}天前`);
+
+                        // 增加具体格点的时分显示，方便核对
+                        const hhmm = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                        dateHtml = `<div style="font-size: 0.75em; opacity: 0.5; margin-top: 2px;">上次检测: ${timeStr} <small>(${hhmm})</small></div>`;
+                    }
 
                     if (c.visualStatus === 'loading') {
                         visualHtml = `<td style="padding: 10px; font-size: 0.85em;">🔄 检测中...</td>`;
-                    } else if (status === 'ok' && image) {
-                        visualHtml = `<td style="padding: 10px;"><img src="${image}" style="height: 40px; cursor: pointer;" onclick="window.open('${image}')" title="点击放大"></td>`;
-                    } else if (c.visualStatus === 'error') {
-                        visualHtml = `<td style="padding: 10px; color: #ef4444; font-size: 0.8em;" title="${c.visualError}">❌ 无画面</td>`;
+                    } else if ((c.visualStatus === 'ok' || !c.visualStatus) && image) {
+                        visualHtml = `<td style="padding: 10px;">
+                            <img src="${image}" style="height: 40px; cursor: pointer;" onclick="window.open('${image}')" title="点击放大">
+                            ${dateHtml}
+                        </td>`;
+                    } else if (c.visualStatus === 'error' || error) {
+                        visualHtml = `<td style="padding: 10px;">
+                            <div style="color: #ef4444; font-size: 0.8em;" title="${error || '检测失败'}">❌ 无画面</div>
+                            ${dateHtml}
+                        </td>`;
                     } else {
                         visualHtml = `<td style="padding: 10px; font-size: 0.8em; opacity: 0.5;">-</td>`;
                     }
@@ -790,31 +861,70 @@
 
             if (filteredChannels.length === 0) return;
 
-            const count = filteredChannels.length;
-            const confirmMsg = `即将对 ${count} 个频道进行深度检测（截图）。\n这将会非常耗时（每个频道约 3-5 秒），建议先通过关键字筛选少量频道再进行检测。\n\n确定要继续吗？`;
+            // 1. 查找哪些是还没检测过的
+            const freshThreshold = 30 * 60 * 1000;
+            const now = new Date();
+
+            // 辅助函数：判断频道是否已经有了“新鲜”的检测结果
+            const isFreshlyFinished = (c) => {
+                if (c.visualStatus) return true; // 本轮检测过的
+                if (!c.check_date) return false; // 根本没检测过
+
+                try {
+                    // 兼容各种日期格式，确保解析正确
+                    const dateStr = c.check_date.endsWith('Z') ? c.check_date : c.check_date.includes('+') ? c.check_date : c.check_date + 'Z';
+                    const dateObj = new Date(dateStr);
+                    return (now - dateObj) < freshThreshold;
+                } catch (e) {
+                    return false;
+                }
+            };
+
+            const pendingChannels = filteredChannels.filter(c => !isFreshlyFinished(c));
+            const completedCount = filteredChannels.length - pendingChannels.length;
+
+            let targets = filteredChannels;
+            if (completedCount > 0 && pendingChannels.length > 0) {
+                // 如果有新鲜结果，提示是否跳过
+                if (confirm(`当前列表共 ${filteredChannels.length} 个频道：\n- 30分钟内已有结果: ${completedCount} 个\n- 待检测/上次失败: ${pendingChannels.length} 个\n\n是否仅检测“待检测/上次失败”的频道？\n(确定：断点续传； 取消：全部重新检测)`)) {
+                    targets = pendingChannels;
+                }
+            } else if (pendingChannels.length === 0 && filteredChannels.length > 0) {
+                // 所有都没变动，提示全部重测
+                if (!confirm(`所有 ${filteredChannels.length} 个频道在 30 分钟内都已检测过，是否要全部重新检测？`)) {
+                    return;
+                }
+            }
+
+            const count = targets.length;
+            const confirmMsg = `即将对 ${count} 个频道进行深度检测（截图）。\n这将会非常耗时（每个频道约 3-5 秒）。\n\n确定要继续吗？`;
             if (count > 20 && !confirm(confirmMsg)) return;
 
             window.isVisualChecking = true;
-            btn.disabled = false; // 保持启用状态，以便点击取消
+            btn.disabled = false;
             btn.innerText = "🛑 取消检测";
             const originalBg = btn.style.background;
-            btn.style.background = "#ef4444"; // 红色表示取消
+            btn.style.background = "#ef4444";
 
             const autoDisable = document.getElementById('auto_disable_check').checked;
 
-            // 标记中
-            filteredChannels.forEach(c => c.visualStatus = 'loading');
+            // 初始标记为 loading (仅针对本次要检测的目标)
+            targets.forEach(c => c.visualStatus = 'loading');
             renderOffset = 0;
             renderBaseTable(document.getElementById('channel_list'), window.lastRenderShowActions);
 
             // 分批处理 (深度检测要慢点)
             const chunkSize = 5;
-            for (let i = 0; i < filteredChannels.length; i += chunkSize) {
-                // 取消检测
+            let finishedInThisSession = 0;
+
+            for (let i = 0; i < targets.length; i += chunkSize) {
                 if (!window.isVisualChecking) break;
 
-                const chunk = filteredChannels.slice(i, i + chunkSize);
+                const chunk = targets.slice(i, i + chunkSize);
                 const items = chunk.map(c => ({ id: c.id, url: c.url }));
+
+                // 更新按钮进度
+                btn.innerText = `🛑 取消 (${finishedInThisSession}/${count})`;
 
                 try {
                     const res = await fetch('/check-stream-visual', {
@@ -827,6 +937,7 @@
                     results.forEach(r => {
                         const match = chunk.find(c => c.id === r.id);
                         if (match) {
+                            finishedInThisSession++;
                             if (r.status) {
                                 match.visualStatus = 'ok';
                                 match.visualImage = r.image;
@@ -851,6 +962,7 @@
                         c.visualError = "网络错误";
                         c.check_status = false;
                         c.check_image = null;
+                        finishedInThisSession++;
                     });
                 }
 
@@ -859,19 +971,27 @@
             }
 
             // 收尾
+            const wasCancelled = !window.isVisualChecking;
             window.isVisualChecking = false;
             btn.disabled = false;
             btn.innerText = "📺 深度检测";
             btn.style.background = originalBg;
 
-            // 取消后把状态归位
-            filteredChannels.forEach(c => {
+            // 如果是中途取消的，把还没轮到的 loading 状态清掉，保留已完成的
+            targets.forEach(c => {
                 if (c.visualStatus === 'loading') {
                     c.visualStatus = null;
                 }
             });
+
             renderOffset = 0;
             renderBaseTable(document.getElementById('channel_list'), window.lastRenderShowActions);
+
+            if (!wasCancelled) {
+                showStatus(`深度检测完成，共处理 ${finishedInThisSession} 个频道。`);
+            } else {
+                showStatus(`检测已中断，已保存 ${finishedInThisSession} 个结果。`);
+            }
         }
 
         async function toggleChannel(id) {
@@ -941,7 +1061,11 @@
             `).join('') || (data.length > 0 ? '所有订阅均已禁用' : '请先添加订阅源');
         }
 
+        window._subLastScrollY = 0;
         function prepareEditSub(id, name, url, ua, autoMinutes, isEnabled) {
+            window._subLastScrollY = window.scrollY; // 记录位置
+            document.getElementById('sub_form_container').scrollIntoView({ behavior: 'smooth' });
+
             document.getElementById('edit_sub_id').value = id;
             document.getElementById('sub_is_enabled').value = isEnabled === undefined ? true : isEnabled;
             document.getElementById('sub_name').value = name;
@@ -968,6 +1092,9 @@
         }
 
         function cancelEditSub() {
+            if (window._subLastScrollY !== undefined) {
+                window.scrollTo({ top: window._subLastScrollY, behavior: 'smooth' });
+            }
             document.getElementById('edit_sub_id').value = '';
             document.getElementById('sub_name').value = '';
             document.getElementById('sub_url').value = '';
@@ -1409,7 +1536,11 @@
 
         let allOutputs = [];
 
+        window._outLastScrollY = 0;
         function prepareEditOutput(id) {
+            window._outLastScrollY = window.scrollY; // 记录位置
+            document.getElementById('outputs').scrollIntoView({ behavior: 'smooth' });
+
             const out = allOutputs.find(o => o.id === id);
             if (!out) return;
 
@@ -1417,8 +1548,11 @@
             document.getElementById('out_name').value = out.name;
             document.getElementById('out_slug').value = out.slug;
             document.getElementById('out_regex').value = out.filter_regex;
-            document.getElementById('out_epg').value = out.epg_url || "";
+            document.getElementById('out_epg').value = out.epg_url || '';
             document.getElementById('out_include_suffix').checked = out.include_source_suffix !== false;
+            document.getElementById('out_is_enabled').checked = out.is_enabled !== false;
+            document.getElementById('out_auto_update').value = out.auto_update_minutes || 0;
+            document.getElementById('out_auto_visual').checked = out.auto_visual_check || false;
 
             // 还原关键字
             keywords = [];
@@ -1436,7 +1570,7 @@
             });
 
             renderTags();
-            activeKeyword = keywords.length > 0 ? keywords[0].value : null;
+            activeKeyword = null; // 修改时不自动选中标签
 
             // 还原选中的订阅
             const subIds = JSON.parse(out.subscription_ids || "[]");
@@ -1448,18 +1582,21 @@
             document.getElementById('out_btn').innerText = '保存修改';
             document.getElementById('out_cancel_btn').style.display = 'block';
             document.getElementById('out_name').focus();
-
-            // 强制预览
-            debounceUpdatePreview();
         }
 
         function cancelEditOutput() {
+            if (window._outLastScrollY !== undefined) {
+                window.scrollTo({ top: window._outLastScrollY, behavior: 'smooth' });
+            }
             document.getElementById('edit_output_id').value = '';
             document.getElementById('out_name').value = '';
             document.getElementById('out_slug').value = '';
             document.getElementById('out_regex').value = '.*';
             document.getElementById('out_epg').value = '';
             document.getElementById('out_include_suffix').checked = true;
+            document.getElementById('out_is_enabled').checked = true; // 默认启用
+            document.getElementById('out_auto_update').value = 0; // 默认不自动更新
+            document.getElementById('out_auto_visual').checked = false;
 
             keywords = [];
             renderTags();
@@ -1476,9 +1613,6 @@
             const id = document.getElementById('edit_output_id').value;
             const name = document.getElementById('out_name').value;
             const slug = document.getElementById('out_slug').value;
-            const regex = document.getElementById('out_regex').value;
-            const epg = document.getElementById('out_epg').value;
-            const includeSuffix = document.getElementById('out_include_suffix').checked;
 
             // 选中的订阅
             const selectedSubs = Array.from(document.querySelectorAll('input[name="selected_subs"]:checked'))
@@ -1492,11 +1626,14 @@
             const out = {
                 name: name,
                 slug: slug,
-                filter_regex: regex || ".*",
-                epg_url: epg || "",
-                include_source_suffix: includeSuffix,
-                keywords: JSON.stringify(keywords), // 直接存数组
-                subscription_ids: JSON.stringify(selectedSubs)
+                filter_regex: document.getElementById('out_regex').value,
+                keywords: JSON.stringify(keywords), // Assuming 'keywords' is the global variable for tags
+                subscription_ids: JSON.stringify(selectedSubs),
+                epg_url: document.getElementById('out_epg').value,
+                include_source_suffix: document.getElementById('out_include_suffix').checked,
+                is_enabled: document.getElementById('out_is_enabled').checked,
+                auto_update_minutes: parseInt(document.getElementById('out_auto_update').value),
+                auto_visual_check: document.getElementById('out_auto_visual').checked
             };
 
             const method = id ? 'PUT' : 'POST';
@@ -1550,29 +1687,34 @@
 
                 list.innerHTML = data.map(o => {
                     const statusColor = o.last_update_status && o.last_update_status.startsWith('Error') ? '#ef4444' : '#10b981';
+                    const subIds = JSON.parse(o.subscription_ids || "[]");
                     return `
-                    <div class="output-item-card">
-                        <div>
-                            <strong>${o.name}</strong>
-                            <small class="slug-badge">${o.slug}</small>
-                        </div>
-                        <div class="url-display" onclick="copyToClipboard('${window.location.origin}/m3u/${o.slug}')">
-                            ${window.location.origin}/m3u/${o.slug}
-                        </div>
-                        <div style="margin-top: 8px; font-size: 0.9em; opacity: 0.7;">
-                            正则: <code>${o.filter_regex || '.*'}</code> | 关键字: ${o.keywords || '无'}
-                        </div>
-                        <div style="font-size: 0.8em; margin-top: 4px; opacity: 0.8;">
-                            📅 ${formatDate(o.last_updated)}
-                            <span style="color: ${statusColor}; margin-left: 8px;">
-                                ${o.last_update_status || '等待刷新'}
-                            </span>
-                        </div>
-                         <div style="font-size: 0.8em; margin-top: 2px; opacity: 0.6;">
-                            📡 最近请求: ${formatDate(o.last_request_time)}
+                    <div class="output-item-card ${o.is_enabled === false ? 'disabled-card' : ''}">
+                        <div class="card-info">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <strong style="font-size: 1.1em; color: var(--primary);">${o.name}</strong>
+                                ${o.is_enabled === false ? '<span style="font-size: 0.75em; background: #ef4444; color: #fff; padding: 2px 6px; border-radius: 4px;">已禁用</span>' : '<span style="font-size: 0.75em; background: #10b981; color: #fff; padding: 2px 6px; border-radius: 4px;">运行中</span>'}
+                            </div>
+                            <div class="url-display" onclick="copyToClipboard('${window.location.origin}/m3u/${o.slug}')">
+                                ${window.location.origin}/m3u/${o.slug}
+                            </div>
+                            <div style="font-size: 0.85em; opacity: 0.7; margin-top: 4px;">
+                                <span>正则: <code>${o.filter_regex || '.*'}</code></span>
+                                <span style="margin-left: 10px;">• 包含 ${subIds.length} 个源</span>
+                                ${o.auto_update_minutes > 0 ? `<span style="margin-left: 10px; color: #a5b4fc;">• 🔄 每${o.auto_update_minutes >= 60 ? o.auto_update_minutes / 60 + '时' : o.auto_update_minutes + '分'}同步</span>` : ''}
+                            </div>
+                            <div style="font-size: 0.8em; opacity: 0.5; margin-top: 4px;">
+                                最后同步: ${formatDate(o.last_updated)} ${o.last_update_status ? `(<span style="color: ${statusColor};">${o.last_update_status}</span>)` : ''}
+                            </div>
+                            <div style="font-size: 0.8em; opacity: 0.6; margin-top: 2px;">
+                                📡 最近请求: ${formatDate(o.last_request_time)}
+                            </div>
                         </div>
                         <div style="margin-top: 10px; display: flex; gap: 10px;">
                             <button class="btn btn-sm" style="background: var(--primary);" onclick="prepareEditOutput(${o.id})">修改</button>
+                            <button class="btn btn-sm" style="background: ${o.is_enabled === false ? '#10b981' : '#64748b'};" onclick="toggleOutputStatus(${o.id}, ${o.is_enabled !== false})">
+                                ${o.is_enabled === false ? '启用' : '禁用'}
+                            </button>
                             <button class="btn btn-sm" style="background: #10b981;" onclick="refreshOutput(${o.id})">刷新源</button>
                             <button class="btn btn-sm" style="background: #3b82f6;" onclick="viewOutputPreview('${o.slug}', '${o.name}')">预览</button>
                             <button class="btn btn-sm" style="background: #ef4444;" onclick="deleteOutput(${o.id})">删除</button>
@@ -1581,6 +1723,33 @@
                 `}).join('');
             } catch (err) {
                 console.error('获取聚合列表失败:', err);
+            }
+        }
+
+        async function toggleOutputStatus(id, currentStatus) {
+            const out = allOutputs.find(o => o.id === id);
+            if (!out) return;
+
+            const updated = {
+                ...out,
+                is_enabled: !currentStatus
+            };
+
+            try {
+                const res = await fetch(`/outputs/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updated)
+                });
+                if (res.ok) {
+                    showStatus(updated.is_enabled ? '已启用聚合' : '已禁用聚合');
+                    fetchOutputs();
+                } else {
+                    const errData = await res.json();
+                    alert('操作失败: ' + (errData.detail || '未知错误'));
+                }
+            } catch (err) {
+                alert('网络错误: ' + err.message);
             }
         }
 

@@ -32,6 +32,7 @@ class Channel(SQLModel, table=True):
     check_status: Optional[bool] = Field(default=None) # 检测是否通顺
     check_date: Optional[datetime] = Field(default=None) # 最后检测时间
     check_image: Optional[str] = Field(default=None) # 频道截图 (Base64)
+    check_error: Optional[str] = Field(default=None) # 深度检测失败原因 (如无画面)
     
     subscription: Subscription = Relationship(back_populates="channels")
 
@@ -48,3 +49,5 @@ class OutputSource(SQLModel, table=True):
     last_updated: datetime = Field(default_factory=datetime.utcnow) # 最后同步时间
     last_update_status: Optional[str] = None # 最后同步状态
     last_request_time: Optional[datetime] = None # 最近被请求的时间
+    is_enabled: bool = Field(default=True) # 是否启用该聚合源
+    auto_update_minutes: int = Field(default=0) # 自动同步频率 (分钟)

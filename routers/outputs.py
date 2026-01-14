@@ -59,6 +59,9 @@ def update_output(output_id: int, output_data: OutputSource, session: Session = 
     output.subscription_ids = output_data.subscription_ids
     output.epg_url = output_data.epg_url
     output.include_source_suffix = output_data.include_source_suffix
+    output.is_enabled = output_data.is_enabled
+    output.auto_update_minutes = output_data.auto_update_minutes
+    output.auto_visual_check = output_data.auto_visual_check
     
     session.add(output)
     session.commit()
@@ -180,23 +183,16 @@ async def get_m3u_output(slug: str, session: Session = Depends(get_session)):
     out.last_request_time = datetime.utcnow()
     session.add(out)
     session.commit()
+    session.refresh(out) # 确保状态同步
     
+    # 检查是否启用
+    if not out.is_enabled:
+        return Response(content="#EXTM3U\n# 频道已暂时下线，请在后台启用该聚合源后重试。", media_type="text/plain; charset=utf-8")
+
     try:
         sub_ids = json.loads(out.subscription_ids)
     except:
         sub_ids = []
-
-    # 顺便刷一下关联订阅
-    for sub_id in sub_ids:
-         try:
-            sub = session.get(Subscription, sub_id)
-            if sub:
-               await process_subscription_refresh(session, sub)
-               sub.last_update_status = "Success (Client Trigger)"
-               session.add(sub)
-               session.commit()
-         except:
-             pass
     
     # 取出刷新的最新频道
     enabled_subs = session.exec(select(Subscription.id).where(Subscription.is_enabled == True)).all()
